@@ -1,7 +1,9 @@
 ## Prerelease 47 ( 2020-05-14 )
 
 - [0323eab](https://github.com/patternfly/patternfly-elements/commit/0323eab2d9dd944cb51dee263056566fe1a14a57) fix: pfe-navigtation-item shouldn't add duplicative event listeners #870
-- [](https://github.com/patternfly/patternfly-elements/commit/) feat: Add ability to demo individual components using `demo` and `live-demo` scripts
+- [4b2eae1](https://github.com/patternfly/patternfly-elements/commit/4b2eae1e9274986dee64e06d61cef7a7a4b9640f) feat: Add ability to demo individual components using `demo` and `live-demo` scripts
+- [a43a44a](https://github.com/patternfly/patternfly-elements/commit/a43a44a585a061694631f13d06b3302cae1e24a2) fix: pfe-card header and footer slot issues #861
+- [](https://github.com/patternfly/patternfly-elements/commit/) feat: pfe-band grid setting updates
 
 ## Prerelease 46 ( 2020-05-12 )
 
