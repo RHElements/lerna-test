@@ -71,7 +71,6 @@ class PfeJumpLinksPanel extends PFElement {
 
     this._init = this._init.bind(this);
     this._makeSpacers = this._makeSpacers.bind(this);
-    this._isValidMarkup = this._isValidMarkup.bind(this);
 
     this._observer = new MutationObserver(() => {
       this._init();
@@ -90,14 +89,6 @@ class PfeJumpLinksPanel extends PFElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this._observer.disconnect();
-  }
-
-  _isValidMarkup() {
-    if ([...this.sections].length === 0) {
-      this.warn(
-        `This panel does not contain any headings labeled with the ${this.tag}__section class. Please add that class and an ID to any heading you would like surfaced in the jump links navigation.`
-      );
-    }
   }
 
   _makeSpacers() {
@@ -134,9 +125,6 @@ class PfeJumpLinksPanel extends PFElement {
   }
 
   _init() {
-    // Validate and throw warnings about improper markup
-    this._isValidMarkup();
-
     // Adding spacers to the panel is opt-in
     // note: this was because determining the scroll-to point
     // was easier with the scroll animation than working through

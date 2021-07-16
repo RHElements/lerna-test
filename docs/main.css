@@ -1,15 +1,10 @@
 :root {
-  --pfe-theme--font-family: "Red Hat Text", "Overpass", Helvetica, Arial, sans-serif;
-  --pfe-theme--font-family--heading: "Red Hat Display", "Overpass", Helvetica, Arial, sans-serif;
   --pfe-navigation--Height--actual: 60px;
 }
 
 html,
 body {
   margin: 0;
-  font-family: 'Red Hat Text', sans-serif;
-  font-size: 1.05rem;
-  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -487,8 +482,6 @@ footer ul {
 }
 
 .PFElement {
-  font-family: "RedHatText", "Overpass", Overpass, Helvetica, Arial, sans-serif;
-  font-family: var(--pfe-theme--font-family, "RedHatText", "Overpass", Overpass, Helvetica, Arial, sans-serif);
   color: var(--pfe-broadcasted--text);
 }
 

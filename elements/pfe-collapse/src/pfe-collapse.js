@@ -1,287 +1,26 @@
 import PFElement from "../../pfelement/dist/pfelement.js";
 
-function generateId() {
-  return Math.random().toString(36).substr(2, 9);
-}
-
-class PfeCollapseToggle extends PFElement {
-  static get tag() {
-    return "pfe-collapse-toggle";
-  }
-
-  get templateUrl() {
-    return "pfe-collapse-toggle.html";
-  }
-
-  get styleUrl() {
-    return "pfe-collapse-toggle.scss";
-  }
-
-  get expanded() {
-    return this.getAttribute("aria-expanded") === "true";
-  }
-
-  set expanded(val) {
-    const value = Boolean(val);
-    this.setAttribute("aria-expanded", value);
-  }
-
-  static get properties() {
-    return {
-      ariaExpanded: {
-        title: "Aria expanded",
-        type: String,
-        prefix: false,
-        values: ["true", "false"],
-      },
-      ariaControls: {
-        title: "Aria controls",
-        type: String,
-        prefix: false,
-        observer: "_ariaControlsChanged",
-      },
-    };
-  }
-
-  constructor(pfeClass, { setTabIndex = true, addKeydownHandler = true } = {}) {
-    super(pfeClass || PfeCollapseToggle);
-
-    this.controlledPanel = false;
-    this._setTabIndex = setTabIndex;
-    this._addKeydownHandler = addKeydownHandler;
-
-    this.addEventListener("click", this._clickHandler);
-
-    if (addKeydownHandler) {
-      this.addEventListener("keydown", this._keydownHandler);
-    }
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-
-    this.expanded = false;
-
-    this.id = this.id || `${PfeCollapseToggle.tag}-${generateId()}`;
-
-    this.setAttribute("role", "button");
-
-    if (this._setTabIndex) {
-      this.setAttribute("tabindex", 0);
-    }
-
-    if (!this.controlledPanel) {
-      this._connectPanel(this.getAttribute("aria-controls"));
-    }
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-
-    this.removeEventListener("click", this._clickHandler);
-
-    if (this._addKeydownHandler) {
-      this.removeEventListener("keydown", this._keydownHandler);
-    }
-  }
-
-  _ariaControlsChanged(oldVal, newVal) {
-    if (!newVal) {
-      return;
-    }
-
-    this._connectPanel(newVal);
-  }
-
-  toggle() {
-    if (this.hasAttribute("disabled")) {
-      return;
-    }
-
-    this.expanded = !this.expanded;
-
-    // one last try to hook up a panel
-    if (!this.controlledPanel) {
-      this._connectPanel(this.getAttribute("aria-controls"));
-    }
-
-    if (this.controlledPanel) {
-      this.controlledPanel.expanded = this.expanded;
-
-      this.emitEvent(PfeCollapse.events.change, {
-        detail: {
-          expanded: this.expanded,
-          toggle: this,
-          panel: this.controlledPanel,
-        },
-      });
-    } else {
-      this.warn(`This toggle doesn't have a panel associated with it`);
-    }
-  }
-
-  _clickHandler() {
-    this.toggle();
-  }
-
-  _keydownHandler(event) {
-    const key = event.key;
-
-    switch (key) {
-      case " ":
-      case "Spacebar":
-      case "Enter":
-        this.toggle();
-        break;
-    }
-  }
-
-  _connectPanel(id) {
-    // this can be an issue if the pfe-collapse is located within
-    // a shadow root
-    if (this.getRootNode) {
-      this.controlledPanel = this.getRootNode().querySelector(`#${id}`);
-    } else {
-      this.controlledPanel = document.querySelector(`#${id}`);
-    }
-  }
-}
-
-class PfeCollapsePanel extends PFElement {
-  static get tag() {
-    return "pfe-collapse-panel";
-  }
-
-  static get events() {
-    return {
-      animationStart: `${this.tag}:animation-start`,
-      animationEnd: `${this.tag}:animation-end`,
-    };
-  }
-
-  get templateUrl() {
-    return "pfe-collapse-panel.html";
-  }
-
-  get styleUrl() {
-    return "pfe-collapse-panel.scss";
-  }
-
-  get animates() {
-    return this.animation === "false" ? false : true;
-  }
-
-  get expanded() {
-    return this.hasAttribute("expanded") || this.hasAttribute("pfe-expanded"); // @TODO: Deprecated
-  }
-
-  set expanded(val) {
-    const value = Boolean(val);
-
-    if (value) {
-      this.setAttribute("pfe-expanded", ""); // @TODO: Deprecated
-      this.setAttribute("expanded", "");
-
-      if (this.animates) {
-        const height = this.getBoundingClientRect().height;
-        this._fireAnimationEvent("opening");
-        this._animate(0, height);
-      }
-    } else {
-      if (this.hasAttribute("expanded") || this.hasAttribute("pfe-expanded")) {
-        // @TODO: Deprecated
-        const height = this.getBoundingClientRect().height;
-        this.removeAttribute("expanded");
-        this.removeAttribute("pfe-expanded"); // @TODO: Deprecated
-
-        if (this.animates) {
-          this._fireAnimationEvent("closing");
-          this._animate(height, 0);
-        }
-      }
-    }
-  }
-
-  static get properties() {
-    return {
-      animation: {
-        title: "Animation",
-        type: String,
-        values: ["false"],
-      },
-      // @TODO: Deprecated
-      oldAnimation: {
-        alias: "animation",
-        attr: "pfe-animation",
-      },
-    };
-  }
-
-  constructor(pfeClass) {
-    super(pfeClass || PfeCollapsePanel);
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-
-    this.expanded = false;
-
-    this.id = this.id || `${PfeCollapsePanel.tag}-${generateId()}`;
-  }
-
-  _animate(start, end) {
-    this.classList.add("animating");
-    this.style.height = `${start}px`;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        this.style.height = `${end}px`;
-        this.classList.add("animating");
-        this.addEventListener("transitionend", this._transitionEndHandler);
-      });
-    });
-  }
-
-  _transitionEndHandler(event) {
-    event.target.style.height = "";
-    event.target.classList.remove("animating");
-    event.target.removeEventListener("transitionend", this._transitionEndHandler);
-
-    this.emitEvent(PfeCollapsePanel.events.animationEnd, {
-      detail: {
-        expanded: this.expanded,
-        panel: this,
-      },
-    });
-  }
-
-  _fireAnimationEvent(state) {
-    this.emitEvent(PfeCollapsePanel.events.animationStart, {
-      detail: {
-        state: state,
-        panel: this,
-      },
-    });
-  }
-}
+import PfeCollapseToggle from "./pfe-collapse-toggle.js";
+import PfeCollapsePanel from "./pfe-collapse-panel.js";
 
 class PfeCollapse extends PFElement {
   static get tag() {
-    return "pfe-collapse";
+    if (this._pfeClass && this._pfeClass.tag) return this._pfeClass.tag;
+    else return "pfe-collapse";
   }
 
-  get templateUrl() {
-    return "pfe-collapse.html";
+  get html() {
+    return `<slot></slot>`;
   }
 
   get styleUrl() {
     return "pfe-collapse.scss";
   }
 
-  get schemaUrl() {
-    return "pfe-collapse.json";
-  }
-
+  /**
+   * Returns a boolean value based on the animation attribute
+   * @returns {boolean}
+   */
   get animates() {
     return this.animation === "false" ? false : true;
   }
@@ -298,7 +37,7 @@ class PfeCollapse extends PFElement {
         title: "Animation",
         type: String,
         values: ["false"],
-        observer: "_animationChanged",
+        cascade: [PfeCollapsePanel.tag],
       },
       // @TODO: Deprecated
       oldAnimation: {
@@ -308,28 +47,53 @@ class PfeCollapse extends PFElement {
     };
   }
 
-  constructor(pfeClass) {
-    super(pfeClass || PfeCollapse);
+  // Declare the type of this component
+  static get PfeType() {
+    return PFElement.PfeTypes.Container;
+  }
 
-    this._toggle = null;
-    this._panel = null;
+  constructor(
+    pfeClass = PfeCollapse,
+    {
+      toggleClass = PfeCollapseToggle,
+      panelClass = PfeCollapsePanel,
+      type = PfeCollapse.PfeType,
+      delayRender = false,
+    } = {}
+  ) {
+    super(pfeClass, {
+      type: type,
+      delayRender: delayRender,
+    });
+
+    // Capture pass-throughs in global pointers
+    this._pfeClass = pfeClass;
+    this._toggleClass = toggleClass;
+    this._panelClass = panelClass;
+
+    // Bind methods to this context
     this._linkControls = this._linkControls.bind(this);
-    this._changeHandler = this._changeHandler.bind(this);
+    this._panelForToggle = this._panelForToggle.bind(this);
+
+    // Set up handlers
     this._observer = new MutationObserver(this._linkControls);
 
-    this.addEventListener(PfeCollapse.events.change, this._changeHandler);
-    this.addEventListener(PfeCollapse.events.animationStart, this._animationStartHandler);
-    this.addEventListener(PfeCollapse.events.animationEnd, this._animationEndHandler);
+    // Attach events
+    this.addEventListener("keydown", this._keydownHandler);
+    this.addEventListener(PfeCollapseToggle.events.change, this._changeEventHandler);
+    this.addEventListener(PfeCollapsePanel.events.animationStart, this._animationStartHandler);
+    this.addEventListener(PfeCollapsePanel.events.animationEnd, this._animationEndHandler);
   }
 
   connectedCallback() {
     super.connectedCallback();
 
+    // note: This would be perfect for an await post IE11 support
     Promise.all([
-      customElements.whenDefined(PfeCollapsePanel.tag),
-      customElements.whenDefined(PfeCollapseToggle.tag),
+      customElements.whenDefined(this._toggleClass.tag),
+      customElements.whenDefined(this._panelClass.tag),
     ]).then(() => {
-      if (this.hasLightDOM()) this._linkControls();
+      this._linkControls();
 
       this._observer.observe(this, { childList: true });
     });
@@ -338,35 +102,117 @@ class PfeCollapse extends PFElement {
   disconnectedCallback() {
     super.disconnectedCallback();
 
-    this.removeEventListener(PfeCollapse.events.change, this._changeHandler);
-    this.removeEventListener(PfeCollapse.events.animationStart, this._animationStartHandler);
-    this.removeEventListener(PfeCollapse.events.animationEnd, this._animationEndHandler);
+    this.removeEventListener("keydown", this._keydownHandler);
+    this.removeEventListener(PfeCollapsePanel.events.animationStart, this._animationStartHandler);
+    this.removeEventListener(PfeCollapsePanel.events.animationEnd, this._animationEndHandler);
     this._observer.disconnect();
   }
 
-  _animationChanged(oldVal, newVal) {
-    if (!newVal) {
-      return;
-    }
-
-    if (newVal !== "false" && newVal !== "true") {
-      return;
-    }
-
-    if (this._panel) {
-      this._panel.animation = newVal;
+  /**
+   * Accepts a 0-based index value (integer) for the set of items to expand or collapse.
+   * @param {Number} index (default: 0)
+   */
+  toggle(index = 0) {
+    const toggles = this._allToggles();
+    const item = toggles[index];
+    if (item) {
+      item.toggle();
     }
   }
 
-  toggle() {
-    this._toggle.toggle();
+  /**
+   * Accepts a 0-based index value (integer) for the set of items to expand; fire an event for the change
+   * @param {Number} index (default: 0)
+   */
+  expand(index = 0) {
+    const toggles = this._allToggles();
+    const item = toggles[index];
+    if (item) {
+      item.expand();
+    }
   }
 
+  /**
+   * Accepts a 0-based index value (integer) for the set of items to collapse; fire an event for the change
+   * @param {Number} index (default: 0)
+   */
+  collapse(index = 0) {
+    const toggles = this._allToggles();
+    const item = toggles[index];
+    if (item) {
+      item.collapse();
+    }
+  }
+
+  /**
+   * Expands all items; fire an event for each change
+   */
+  expandAll() {
+    const toggles = this._allToggles();
+    toggles.forEach((toggle) => {
+      toggle.expand();
+    });
+
+    // Update focus state
+    toggles[0].focus = true;
+  }
+
+  /**
+   * Collapses all items; fire an event for each change
+   */
+  collapseAll() {
+    const toggles = this._allToggles();
+    toggles.forEach((toggle) => {
+      toggle.collapse();
+    });
+
+    // Update focus state
+    toggles[0].focus = true;
+  }
+
+  /**
+   * Initialize the component by connecting toggles and panels
+   * with aria controls and labels
+   */
   _linkControls() {
-    this._toggle = this.querySelector(PfeCollapseToggle.tag);
-    this._panel = this.querySelector(PfeCollapsePanel.tag);
+    const toggles = this._allToggles();
 
-    this._toggle.setAttribute("aria-controls", this._panel.id);
+    // @TODO: Throw warning here?  Attach an observer?
+    if (!toggles) return;
+
+    // For each toggle in the set, attach the aria connections
+    toggles.forEach((toggle) => {
+      const panel = this._panelForToggle(toggle);
+      // Escape if no matching panel can be found
+      if (!panel) return;
+
+      // Define the controlled panel
+      toggle.controlledPanel = panel;
+
+      // Set up the aria connections
+      toggle.ariaControls = panel.id;
+      panel.ariaLabelledby = toggle.id;
+    });
+  }
+
+  _allToggles() {
+    if (!this.isIE11) return [...this.querySelectorAll(`:scope > ${this._toggleClass.tag}`)];
+    else return this.children.filter((el) => el.tagName.toLowerCase() === this._toggleClass.tag);
+  }
+
+  // _getIndex() {}
+
+  _panelForToggle(toggle) {
+    const next = toggle.nextElementSibling;
+
+    if (!next) return;
+
+    if (next.tagName.toLowerCase() !== this._panelClass.tag) {
+      this.error(`Sibling element to a toggle needs to be a panel.`);
+      return;
+    }
+
+    return next;
   }
 
   _animationStartHandler() {
@@ -377,11 +223,54 @@ class PfeCollapse extends PFElement {
     this.classList.remove("animating");
   }
 
-  _changeHandler(event) {}
+  /**
+   * Pushes out a generically named event with the necessary details
+   * @param {object} event
+   */
+  _changeEventHandler(event) {
+    this.emitEvent(PfeCollapse.events.change, event.detail);
+  }
+
+  _keydownHandler(evt) {
+    const toggles = this._allToggles();
+    let currentIdx = toggles.findIndex((toggle) => toggle === document.activeElement);
+    let nextToggle;
+
+    switch (evt.key) {
+      case "ArrowDown":
+      case "Down":
+      case "ArrowRight":
+      case "Right":
+        nextToggle = toggles[currentIdx + (1 % toggles.length)];
+        break;
+      case "ArrowUp":
+      case "Up":
+      case "ArrowLeft":
+      case "Left":
+        nextToggle = toggles[(currentIdx - 1 + toggles.length) % toggles.length];
+        break;
+      case "Home":
+        nextToggle = toggles[0];
+        break;
+      case "End":
+        nextToggle = toggles[toggles.length - 1];
+        break;
+      default:
+        return;
+    }
+
+    // If we found a next item, set our focus to it
+    if (nextToggle) nextToggle.focus = true;
+  }
+
+  // Pointer to the PFElement create method for components extending this
+  static create(pfeClass) {
+    PFElement.create(pfeClass);
+  }
 }
 
-PFElement.create(PfeCollapse);
 PFElement.create(PfeCollapseToggle);
 PFElement.create(PfeCollapsePanel);
+PFElement.create(PfeCollapse);
 
 export { PfeCollapse, PfeCollapseToggle, PfeCollapsePanel };
